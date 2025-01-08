@@ -27,7 +27,7 @@ you can find the compiled script in the latest releases, or [directly download f
 
 ## manual install
 ```bash
-git clone https://github.com/
+git clone https://github.com/https://github.com/phruut/prawl
 ```
 ```bash
 cd prawl
@@ -37,5 +37,5 @@ python -m pip install -r requirements.txt
 ```
 and then you can run it
 ```bash
-python main.py
+python farm.py
 ```
