@@ -10,6 +10,7 @@ import win32gui
 import webbrowser
 import subprocess
 import dearpygui.dearpygui as dpg
+from _mk import Keyboard
 
 # timer thingy
 class Timer:
@@ -106,12 +107,16 @@ class KeySequence:
         self._last_a = None
         self._last_menu_k = None
 
-    def _keypress(self, hwnd, key, hold=0.07, delay=0.15):
+    def _keypress(self, hwnd, key, hold=0.07, delay=0.15, direct=False):
         vk = win32api.VkKeyScan(key) if isinstance(key, str) else key
-        win32api.SendMessage(hwnd, win32con.WM_KEYDOWN, vk, 0)
-        time.sleep(random.uniform((hold-0.01),(hold+0.02)))
-        win32api.SendMessage(hwnd, win32con.WM_KEYUP, vk, 0)
-        time.sleep(random.uniform(delay, (delay+0.04)))
+        if direct:
+            keyboard.keypress(key, hold)
+            time.sleep(random.uniform(delay, (delay+0.04)))
+        else:
+            win32api.SendMessage(hwnd, win32con.WM_KEYDOWN, vk, 0)
+            time.sleep(random.uniform((hold-0.01),(hold+0.02)))
+            win32api.SendMessage(hwnd, win32con.WM_KEYUP, vk, 0)
+            time.sleep(random.uniform(delay, (delay+0.04)))
 
     def _build(self, time_d, time_a, menu_k):
         global HWND
@@ -128,25 +133,25 @@ class KeySequence:
             # spams through the results screen and chooese the same legend and starts game
             'spam_menu': [
                 (lambda: dpg.configure_item('farm_status', default_value='spamming through menu!', color=(207, 104, 225)), 0),
-                *( (lambda: self._keypress(HWND, 'c', dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0) for _ in range(dpg.get_value('start_spam')) ),
+                *( (lambda: self._keypress(HWND, 'c', dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0) for _ in range(dpg.get_value('start_spam')) ),
                 *( (lambda i=i: dpg.configure_item('farm_status', default_value=f'waiting for game {dpg.get_value("wait_gameload")-i}...', color=(187, 98, 110)), 1) for i in range(dpg.get_value('wait_gameload')) ),
             ],
             # open menu, waits
             'open_menu': [
                 (lambda: dpg.configure_item('farm_status', default_value='open esc menu', color=(207, 104, 225)), 0),
-                *( (lambda: self._keypress(HWND, menu_k, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), dpg.get_value('menu_key_presses_delay')) for _ in range(dpg.get_value('menu_key_presses')) ),
+                *( (lambda: self._keypress(HWND, menu_k, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), dpg.get_value('menu_key_presses_delay')) for _ in range(dpg.get_value('menu_key_presses')) ),
             ],
             # disconnects from game
             'disconnect': [
                 (lambda: dpg.configure_item('farm_status', default_value='wait disconnect delay', color=(187, 98, 110)), dpg.get_value('wait_disconnect')),
-                (lambda: self._keypress(HWND, up, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0),
-                (lambda: self._keypress(HWND, 'c', dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0),
+                (lambda: self._keypress(HWND, up, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0),
+                (lambda: self._keypress(HWND, 'c', dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0),
             ],
             # reconnects to game
             'reconnect': [
                 *( (lambda i=i: dpg.configure_item('farm_status', default_value=f'reconnecting in {dpg.get_value("wait_reconnect")-i}...', color=(187, 98, 110)), 1) for i in range(dpg.get_value('wait_reconnect')) ),
                 (lambda: dpg.configure_item('farm_status', default_value='pressing...', color=(207, 104, 225)), 0),
-                *( (lambda: self._keypress(HWND, 'c', dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0) for i in range(2) )
+                *( (lambda: self._keypress(HWND, 'c', dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0) for i in range(2) )
             ],
 
             # temporary fix for people having issues disconnecting from the match (game ignoring esc press after second match)
@@ -154,16 +159,16 @@ class KeySequence:
             # this wont matter if the script successfully disconnected from the match the first time because it happens during the transition from in-game to title screen
             'open_menu_fix': [
                 (lambda: dpg.configure_item('farm_status', default_value='esc menu fix...', color=(207, 104, 225)), 0),
-                (lambda: self._keypress(HWND, menu_k, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0),
-                (lambda: self._keypress(HWND, up, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0),
-                (lambda: self._keypress(HWND, 'c', dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0)
+                (lambda: self._keypress(HWND, menu_k, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0),
+                (lambda: self._keypress(HWND, up, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0),
+                (lambda: self._keypress(HWND, 'c', dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0)
             ],
 
             # (must have HOLD TO PAUSE option enabled in brawlhalla settings)
             'open_menu_hold': [
                 (lambda: dpg.configure_item('farm_status', default_value='open esc menu (hold)', color=(207, 104, 225)), 0),
-                *( (lambda: self._keypress(HWND, menu_k, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0) for _ in range(2) ),
-                (lambda: self._keypress(HWND, menu_k, 2, dpg.get_value('keypress_delay')), 0),
+                *( (lambda: self._keypress(HWND, menu_k, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0) for _ in range(2) ),
+                (lambda: self._keypress(HWND, menu_k, 2, dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0),
             ],
 
             # lobby setup, works only on first launch... oh boy this is long
@@ -171,79 +176,79 @@ class KeySequence:
                 (lambda: dpg.configure_item('farm_status', default_value='GAME RULES', color=(207, 104, 225)), 0),
                 # lobby settings page 1
                 (lambda: dpg.configure_item('farm_status', default_value='open menu', color=(207, 104, 225)), 0),
-                (lambda: self._keypress(HWND, 'x', dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0),                                 # open lobby settings
+                (lambda: self._keypress(HWND, 'x', dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0),                                 # open lobby settings
                 (lambda: dpg.configure_item('farm_status', default_value='selecting CREW BATTLE', color=(207, 104, 225)), 0),
-                *( (lambda: self._keypress(HWND, left, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0) for _ in range(6) ),         # set gamemode to crew battle
+                *( (lambda: self._keypress(HWND, left, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0) for _ in range(6) ),         # set gamemode to crew battle
                 (lambda: dpg.configure_item('farm_status', default_value='setting LIVES to 99', color=(207, 104, 225)), 0),
-                *( (lambda: self._keypress(HWND, down, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0) for _ in range(3) ),         # select 'LIVES'
-                *( (lambda: self._keypress(HWND, left, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0) for _ in range(3) ),         # set stocks to 99
+                *( (lambda: self._keypress(HWND, down, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0) for _ in range(3) ),         # select 'LIVES'
+                *( (lambda: self._keypress(HWND, left, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0) for _ in range(3) ),         # set stocks to 99
                 (lambda: dpg.configure_item('farm_status', default_value=f'setting MATCH TIME {dpg.get_value("match_time")}', color=(207, 104, 225)), 0),
-                (lambda: self._keypress(HWND, down, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0),                                # select 'MATCH TIME'
-                *( (lambda: self._keypress(HWND, time_d, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0) for _ in range(time_a) ),  # set according to match time in current config
+                (lambda: self._keypress(HWND, down, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0),                                # select 'MATCH TIME'
+                *( (lambda: self._keypress(HWND, time_d, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0) for _ in range(time_a) ),  # set according to match time in current config
                 (lambda: dpg.configure_item('farm_status', default_value='setting DAMAGE', color=(207, 104, 225)), 0),
-                *( (lambda: self._keypress(HWND, down, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0) for _ in range(2) ),         # select 'DAMAGE'
-                *( (lambda: self._keypress(HWND, left, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0) for _ in range(5) ),         # set damage to 50%
+                *( (lambda: self._keypress(HWND, down, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0) for _ in range(2) ),         # select 'DAMAGE'
+                *( (lambda: self._keypress(HWND, left, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0) for _ in range(5) ),         # set damage to 50%
                 (lambda: dpg.configure_item('farm_status', default_value='turning gadgets off', color=(207, 104, 225)), 0),
-                *( (lambda: self._keypress(HWND, down, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0) for _ in range(2) ),         # select 'GADGET SPAWN RATE'
-                (lambda: self._keypress(HWND, left, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0),                                # disable gadgets
+                *( (lambda: self._keypress(HWND, down, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0) for _ in range(2) ),         # select 'GADGET SPAWN RATE'
+                (lambda: self._keypress(HWND, left, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0),                                # disable gadgets
                 (lambda: dpg.configure_item('farm_status', default_value='maps to Tournament 1v1', color=(207, 104, 225)), 0),
-                *( (lambda: self._keypress(HWND, down, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0) for _ in range(3) ),         # select 'MAP SET'
-                *( (lambda: self._keypress(HWND, left, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0) for _ in range(2) ),         # set to Tournament 1v1
+                *( (lambda: self._keypress(HWND, down, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0) for _ in range(3) ),         # select 'MAP SET'
+                *( (lambda: self._keypress(HWND, left, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0) for _ in range(2) ),         # set to Tournament 1v1
                 (lambda: dpg.configure_item('farm_status', default_value='setting MAX PLAYERS to 2', color=(207, 104, 225)), 0),
-                (lambda: self._keypress(HWND, down, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0),                                # select 'MAX PLAYERS'
-                *( (lambda: self._keypress(HWND, left, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0) for _ in range(2) ),         # set to max 2 players
+                (lambda: self._keypress(HWND, down, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0),                                # select 'MAX PLAYERS'
+                *( (lambda: self._keypress(HWND, left, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0) for _ in range(2) ),         # set to max 2 players
             ],
 
             'lobby_setup_lobby': [
                 (lambda: dpg.configure_item('farm_status', default_value='LOBBY', color=(207, 104, 225)), 0),
                 # lobby settings page 2
-                (lambda: self._keypress(HWND, ']'), 0),                                                                                                  # switch pages
+                (lambda: self._keypress(HWND, ']', direct=dpg.get_value('direct_input')), 0),                                                                                           # switch pages
                 (lambda: dpg.configure_item('farm_status', default_value='turning off FRIENDS', color=(207, 104, 225)), 0),
-                *( (lambda: self._keypress(HWND, down, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0) for _ in range(3) ),         # select 'FRIENDS'
-                (lambda: self._keypress(HWND, left, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0),                                # set to OFF
+                *( (lambda: self._keypress(HWND, down, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0) for _ in range(3) ),         # select 'FRIENDS'
+                (lambda: self._keypress(HWND, left, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0),                                # set to OFF
                 (lambda: dpg.configure_item('farm_status', default_value='turning off CLANMATES', color=(207, 104, 225)), 0),
-                (lambda: self._keypress(HWND, down, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0),                                # select 'CLANMATES'
-                (lambda: self._keypress(HWND, left, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0),                                # set to OFF
+                (lambda: self._keypress(HWND, down, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0),                                # select 'CLANMATES'
+                (lambda: self._keypress(HWND, left, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0),                                # set to OFF
                 (lambda: dpg.configure_item('farm_status', default_value='setting MAP CHOOSING to Random', color=(207, 104, 225)), 0),
-                *( (lambda: self._keypress(HWND, down, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0) for _ in range(2) ),         # select 'MAP CHOOSING'
-                *( (lambda: self._keypress(HWND, left, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0) for _ in range(2) ),         # set to Random
+                *( (lambda: self._keypress(HWND, down, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0) for _ in range(2) ),         # select 'MAP CHOOSING'
+                *( (lambda: self._keypress(HWND, left, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0) for _ in range(2) ),         # set to Random
                 (lambda: dpg.configure_item('farm_status', default_value='turning of ALLOW HANDICAPS', color=(207, 104, 225)), 0),
-                *( (lambda: self._keypress(HWND, down, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0) for _ in range(2) ),         # select 'ALLOW HANDICAPS'
-                (lambda: self._keypress(HWND, left, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0),                                # set to ON
+                *( (lambda: self._keypress(HWND, down, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0) for _ in range(2) ),         # select 'ALLOW HANDICAPS'
+                (lambda: self._keypress(HWND, left, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0),                                # set to ON
                 (lambda: dpg.configure_item('farm_status', default_value='closing menu', color=(207, 104, 225)), 0),
-                (lambda: self._keypress(HWND, 'c', dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0.5),                               # exit the menu
+                (lambda: self._keypress(HWND, 'c', dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0.5),                               # exit the menu
 
                 # bot and handicap configuration
                 (lambda: dpg.configure_item('farm_status', default_value='opening MANAGE PARTY menu', color=(207, 104, 225)), 0),
-                (lambda: self._keypress(HWND, 'v', dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0),                                 # open 'MANAGE PARTY'
+                (lambda: self._keypress(HWND, 'v', dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0),                                 # open 'MANAGE PARTY'
                 (lambda: dpg.configure_item('farm_status', default_value='adding and opening BOT menu', color=(207, 104, 225)), 0),
-                *( (lambda: self._keypress(HWND, 'c', dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0.5) for _ in range(2) ),        # add bot, open bot menu
+                *( (lambda: self._keypress(HWND, 'c', dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0.5) for _ in range(2) ),        # add bot, open bot menu
                 (lambda: dpg.configure_item('farm_status', default_value='set LIVES to 89', color=(207, 104, 225)), 0),
-                (lambda: self._keypress(HWND, down, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0),                                # select 'LIVES'
-                *( (lambda: self._keypress(HWND, left, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0) for _ in range(10) ),        # set lives to 89
+                (lambda: self._keypress(HWND, down, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0),                                # select 'LIVES'
+                *( (lambda: self._keypress(HWND, left, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0) for _ in range(10) ),        # set lives to 89
                 (lambda: dpg.configure_item('farm_status', default_value='set Dmg Done 50%', color=(207, 104, 225)), 0),
-                (lambda: self._keypress(HWND, down, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0),                                # select 'Dmg Done'
-                *( (lambda: self._keypress(HWND, left, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0) for _ in range(5) ),         # set to 50%
+                (lambda: self._keypress(HWND, down, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0),                                # select 'Dmg Done'
+                *( (lambda: self._keypress(HWND, left, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0) for _ in range(5) ),         # set to 50%
                 (lambda: dpg.configure_item('farm_status', default_value='set Dmg Taken 50%', color=(207, 104, 225)), 0),
-                (lambda: self._keypress(HWND, down, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0),                                # select 'Dmg Taken'
-                *( (lambda: self._keypress(HWND, left, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0) for _ in range(5) ),         # set to 50%
+                (lambda: self._keypress(HWND, down, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0),                                # select 'Dmg Taken'
+                *( (lambda: self._keypress(HWND, left, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0) for _ in range(5) ),         # set to 50%
                 (lambda: dpg.configure_item('farm_status', default_value='switching to P1 menu', color=(207, 104, 225)), 0),
-                (lambda: self._keypress(HWND, 'c'), 0),                                                                                                  # close bot menu
+                (lambda: self._keypress(HWND, 'c', direct=dpg.get_value('direct_input')), 0),                                                                                                  # close bot menu
 
-                (lambda: self._keypress(HWND, win32con.VK_UP, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0),                      # select p1
-                (lambda: self._keypress(HWND, 'c', dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0),                                 # open p1 menu
+                (lambda: self._keypress(HWND, up, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0),                      # select p1
+                (lambda: self._keypress(HWND, 'c', dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0),                                 # open p1 menu
                 (lambda: dpg.configure_item('farm_status', default_value='set Dmg Done 50%', color=(207, 104, 225)), 0),
-                *( (lambda: self._keypress(HWND, down, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0) for _ in range(2) ),         # select 'Dmg Done'
-                *( (lambda: self._keypress(HWND, left, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0) for _ in range(5) ),         # set to 50%
+                *( (lambda: self._keypress(HWND, down, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0) for _ in range(2) ),         # select 'Dmg Done'
+                *( (lambda: self._keypress(HWND, left, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0) for _ in range(5) ),         # set to 50%
                 (lambda: dpg.configure_item('farm_status', default_value='set Dmg Taken 50%', color=(207, 104, 225)), 0),
-                (lambda: self._keypress(HWND, down, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0),                                # select 'Dmg Taken'
-                *( (lambda: self._keypress(HWND, left, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0) for _ in range(5) ),         # set to 50%
+                (lambda: self._keypress(HWND, down, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0),                                # select 'Dmg Taken'
+                *( (lambda: self._keypress(HWND, left, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0) for _ in range(5) ),         # set to 50%
                 (lambda: dpg.configure_item('farm_status', default_value='close MANAGE PARTY menu', color=(207, 104, 225)), 0),
-                #(lambda: self._keypress(HWND, 'v', dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0),                                 # close 'MANAGE PARTY'
+                #(lambda: self._keypress(HWND, 'v', dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0),                                 # close 'MANAGE PARTY'
             ],
 
             'lobby_setup_finish': [
-                (lambda: self._keypress(HWND, win32con.VK_ESCAPE, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay')), 0), 
+                (lambda: self._keypress(HWND, win32con.VK_ESCAPE, dpg.get_value('keypress_hold'), dpg.get_value('keypress_delay'), dpg.get_value('direct_input')), 0), 
                 (lambda: dpg.configure_item('farm_status', default_value='finished lobby setup', color=(100, 149, 238)), 0),
             ]
         }
@@ -278,6 +283,8 @@ class KeySequence:
         for action, delay in actions:
             if not is_running():
                 break
+            if dpg.get_value('direct_input'):
+                win32gui.SetForegroundWindow(HWND)
             action()
             if delay >= 1: # i split this so you can stop after 1 second checks if you pressed the stop button or not :3
                 for _ in range(int(delay)):
@@ -309,6 +316,7 @@ def config_read():
         'open_menu_fix2': False,
         'open_menu_hold': False,
         'open_menu_enter': False,
+        'direct_input': False,
         'keypress_hold': 0.07,
         'keypress_delay': 0.15,
         'beep_frequency': 500,
@@ -377,6 +385,7 @@ def config_write():
         'open_menu_fix2': dpg.get_value('open_menu_fix2'),
         'open_menu_hold': dpg.get_value('open_menu_hold'),
         'open_menu_enter': dpg.get_value('open_menu_enter'),
+        'direct_input': dpg.get_value('direct_input'),
         'keypress_hold': dpg.get_value('keypress_hold'),
         'keypress_delay': dpg.get_value('keypress_delay'),
         'beep_frequency': dpg.get_value('beep_frequency'),
@@ -652,6 +661,10 @@ def create_gui(config):
                     dpg.add_spacer(height=2)
                     with dpg.tree_node(label='key press (for fun)'):
                         dpg.add_spacer(height=2)
+                        dpg.add_text('mode')
+                        dpg.add_checkbox(label='direct input', tag='direct_input', default_value=bool(config['direct_input']))
+                        with dpg.tooltip(dpg.last_item()):
+                            dpg.add_text('directly send inputs to the ACTIVE window, WILL NOT WORK IN BACKGROUND!', wrap=260)
                         dpg.add_text('hold')
                         with dpg.tooltip(dpg.last_item()):
                             dpg.add_text('how long each key is pressed down for... average human is around 0.06-0.08 seconds', wrap=260)
@@ -760,13 +773,14 @@ if __name__ == '__main__':
     # set key sequences and timer
     keyseq = KeySequence()
     timer = Timer(keyseq)
+    keyboard = Keyboard()
 
     # config yeah
     config = config_read()
 
     # setup and start gui
     create_gui(config)
-    dpg.create_viewport(title='farm.py 12-09', width=300, height=200)
+    dpg.create_viewport(title='farm.py 25.01.08', width=300, height=200)
     dpg.set_viewport_always_top(dpg.get_value('always_on_top'))
     dpg.setup_dearpygui()
     dpg.show_viewport()
