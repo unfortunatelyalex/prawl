@@ -39,3 +39,8 @@ and then you can run it
 ```bash
 python farm.py
 ```
+
+## compiled with nuitka
+```bash
+nuitka --onefile --windows-disable-console farm.py
+```
