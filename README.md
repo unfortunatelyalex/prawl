@@ -42,5 +42,5 @@ python farm.py
 
 ## compiled with nuitka
 ```bash
-nuitka --onefile --windows-disable-console --windows-icon-from-ico=icon.ico --farm.py
+nuitka --onefile --windows-disable-console --windows-icon-from-ico=icon.ico farm.py
 ```
