@@ -1,31 +1,37 @@
-gold and exp farming timer script for brawlhalla patch 9.01 [(download)](https://github.com/phruut/prawl/releases/latest)\
+gold and exp farming timer script for brawlhalla patch 9.09 [(download)](https://github.com/phruut/prawl/releases/latest)\
 please see the [wiki](https://github.com/phruut/prawl/wiki) for more information about the script\
 discord server: https://discord.gg/2HDmuqqq9p
 
-## important
+## 💡important
 add this steam startup option
 ```
 -noeac
 ```
 > [!caution]
 > please **always** use `-noeac` option before using the script to avoid the risk of any bans, although it is highly unlikely\
-> i am also not responsible for anything that happens to your account
+> _i am not responsible for anything that happens to your account_
 
-## features
+## 🔥features
 - launch brawlhalla from script (+auto launch on script start option)
-- set custom configuration values for timing adjustments and script behavior
+- set custom values for script behavior timing adjustments
 - auto start matches, also configurable
 - show/hide brawlhalla window
-- runs in the background (no interruption as it directly sends inputs only to the brawlhalla window)
+- runs in the background (no interruption as it directly sends inputs to the brawlhalla window only)
 - exp rate limit detection (starts again after waiting for the rate limit to reset)
-- very light weight and minimal dependencies as it is basically only a timer script
+- very light weight and minimal dependencies as it is basically just a timer script
 
-## download
-you can find the compiled script in the latest releases, or [directly download file]()
+### other
+- [ ] pixel search mode
+- [ ] fix input bugs(?)
+
+## 🔎download
+you can find the compiled script in the [releases page](https://github.com/phruut/prawl/releases), or [click here to download](https://github.com/phruut/prawl/releases/download/241209/farm_1209.exe)
 > [!warning]
 > your anti-virus may flag this executable as a threat, as it interacts with Win32 API for sending key inputs in the background
 
-## manual install
+## 🚀manual install
+> [!note]
+> please use python 3.8 to 3.12 as DearPyGui 1.10.1 is not compatible with 3.13 and onwards
 ```bash
 git clone https://github.com/https://github.com/phruut/prawl
 ```
