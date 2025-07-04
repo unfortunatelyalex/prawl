@@ -1,6 +1,6 @@
 gold and exp farming timer script for brawlhalla patch 9.09 [(download)](https://github.com/phruut/prawl/releases/latest)\
 please see the [wiki](https://github.com/phruut/prawl/wiki) for more information about the script\
-discord server: https://discord.gg/2HDmuqqq9p  
+help/dev server: https://discord.gg/2HDmuqqq9p  
 video tutorial: https://youtu.be/SWuSntfHioQ
 ## 💡important
 add this steam startup option
