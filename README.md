@@ -1,4 +1,4 @@
-gold and exp farming timer script for brawlhalla patch 9.11 [(download)](https://github.com/phruut/prawl/releases/latest)\
+gold and exp farming timer script for **brawlhalla patch 9.11** [(download)](https://github.com/phruut/prawl/releases/latest)\
 please see the [wiki](https://github.com/phruut/prawl/wiki) for more information about the script\
 help/dev server: https://discord.gg/2HDmuqqq9p
 video tutorial: https://youtu.be/SWuSntfHioQ
@@ -32,7 +32,7 @@ add this steam startup option
 ## 🔎download
 you can find the compiled script in the [releases page](https://github.com/phruut/prawl/releases), or [click here to download](https://github.com/phruut/prawl/releases/download/241209/farm_1209.exe)
 > [!warning]
-> your anti-virus may flag this executable as a threat, as it interacts with Win32 API for sending key inputs in the background
+> your anti-virus may flag this executable as a threat, as it interacts with Win32 API for sending key inputs
 
 ## 🚀manual install
 ```bash
@@ -51,7 +51,7 @@ python main.py
 
 ## compiled with nuitka
 ```bash
-nuitka  --onefile --windows-console-mode=disable --windows-icon-from-ico=icon.ico farm.py
+nuitka --onefile --windows-console-mode=disable --windows-icon-from-ico=res\icon.ico main.py
 ```
 
 ## 🔗links
