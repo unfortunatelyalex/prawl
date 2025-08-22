@@ -51,7 +51,7 @@ python main.py
 
 ## compiled with nuitka
 ```bash
-nuitka --onefile --windows-console-mode=disable --windows-icon-from-ico=res\icon.ico main.py
+nuitka --onefile --windows-console-mode=disable --windows-icon-from-ico=res\praw-app.ico main.py
 ```
 
 ## 🔗links
