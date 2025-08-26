@@ -3,101 +3,101 @@ import sys
 import configparser
 import dearpygui.dearpygui as dpg
 
-# platform thing
-def get_platform():
+import os
+import sys
+import configparser
+import dearpygui.dearpygui as dpg
+from typing import Dict, Any
+import logging
+from scripts.constants import (
+    CONFIG_FILENAME, 
+    ICON_PATH, 
+    MAIN_FONT_PATH, 
+    ICON_FONT_PATH, 
+    DEFAULT_CONFIG
+)
+
+# Set up logging
+logger = logging.getLogger(__name__)
+
+def get_platform() -> str:
+    """
+    Get the current platform and validate it's supported.
+    
+    Returns:
+        Platform string if Windows, raises OSError otherwise
+    """
     platform = sys.platform
     if platform.lower().startswith('win'):
         return platform
     else:
-        raise OSError('unsupported operating system')
+        raise OSError('Unsupported operating system - Windows required')
 
-# handles paths properly when compiled or running from source
-def script_dir():
+def script_dir() -> str:
+    """
+    Get the directory containing the script or executable.
+    
+    Returns:
+        Directory path as string
+    """
     if getattr(sys, 'frozen', False):
-        # for running as executable
+        # Running as executable
         return os.path.dirname(sys.executable)
     else:
-        # for running as script
+        # Running as script
         return os.path.dirname(os.path.abspath(sys.argv[0]))
 
 class Config:
-    def __init__(self, filepath='config.ini'):
+    def __init__(self, filepath: str = CONFIG_FILENAME):
         self.version = '0.1.0'
         self.filepath = os.path.join(script_dir(), filepath)
-        self.icon = os.path.join(script_dir(), 'res/prawl-app.ico')
-        self.main_font = os.path.join(script_dir(), 'res/cq-pixel-min.ttf')
-        self.icon_font = os.path.join(script_dir(), 'res/Piconic.ttf')
-        self.defaults = {
-            'match_time': 25,
-            'timer_sound': False,
-            'always_on_top': True,
-            'game_start_spam': 12,
-            'game_restart_delay': 4,
-            'game_load_time': 15,
-            'menu_key_presses': 2,
-            'menu_key_presses_delay': 0,
-            'disconnect_delay': 100,
-            'reconnect_delay': 4,
-            'open_menu_default': True,
-            'open_menu_fix': False,
-            'open_menu_fix2': False,
-            'open_menu_hold': False,
-            'open_menu_enter': True,
-            'direct_input': False,
-            'keypress_hold': 70,
-            'keypress_delay': 150,
-            'beep_frequency': 500,
-            'beep_duration': 72,
-            'rate_limit_detect': True,
-            'rate_limit_wait': True,
-            'rate_limit_wait_time': 45,
-            'max_games': False,
-            'max_games_amount': 16,
-            'auto_launch': False,
-            'key_light': 'c',
-            'key_heavy': 'x',
-            'key_throw': 'v',
-            'key_left': 'left',
-            'key_up': 'up',
-            'key_right': 'right',
-            'key_down': 'down',
-        }
+        self.icon = os.path.join(script_dir(), ICON_PATH)
+        self.main_font = os.path.join(script_dir(), MAIN_FONT_PATH)
+        self.icon_font = os.path.join(script_dir(), ICON_FONT_PATH)
+        self.defaults = DEFAULT_CONFIG.copy()
         self.config = configparser.ConfigParser()
-        self.data = {}
+        self.data: Dict[str, Any] = {}
         self.load()
 
-    def load(self):
-        self.config.read(self.filepath)
+    def load(self) -> None:
+        """Load configuration from file, creating defaults if necessary."""
+        try:
+            self.config.read(self.filepath)
 
-        if not self.config.has_section('settings'):
-            self.config.add_section('settings')
+            if not self.config.has_section('settings'):
+                self.config.add_section('settings')
 
-        updated = False
-        for key, value in self.defaults.items():
-            if not self.config.has_option('settings', key):
-                self.config.set('settings', key, str(value))
-                updated = True
+            updated = False
+            for key, value in self.defaults.items():
+                if not self.config.has_option('settings', key):
+                    self.config.set('settings', key, str(value))
+                    updated = True
 
-        if updated:
-            with open(self.filepath, 'w') as f:
-                self.config.write(f)
+            if updated:
+                self._write_config()
 
-        for key, default_value in self.defaults.items():
-            val_str = self.config.get('settings', key)
-            try:
-                if isinstance(default_value, bool):
-                    self.data[key] = self.config.getboolean('settings', key)
-                elif isinstance(default_value, int):
-                    self.data[key] = self.config.getint('settings', key)
-                elif isinstance(default_value, float):
-                    self.data[key] = self.config.getfloat('settings', key)
-                else:
-                    self.data[key] = val_str
-            except ValueError:
-                self.data[key] = default_value
+            # Load values with proper type conversion
+            for key, default_value in self.defaults.items():
+                try:
+                    if isinstance(default_value, bool):
+                        self.data[key] = self.config.getboolean('settings', key)
+                    elif isinstance(default_value, int):
+                        self.data[key] = self.config.getint('settings', key)
+                    elif isinstance(default_value, float):
+                        self.data[key] = self.config.getfloat('settings', key)
+                    else:
+                        self.data[key] = self.config.get('settings', key)
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"Invalid config value for {key}: {e}, using default")
+                    self.data[key] = default_value
+                    
+        except Exception as e:
+            logger.error(f"Error loading config: {e}")
+            # Use defaults if config loading fails
+            self.data = self.defaults.copy()
 
-
-    def save(self):
+    def save(self) -> None:
+        """Save current configuration to file."""
         config_to_save = {
             'match_time': 'match_time',
             'timer_sound': 'timer_sound',
@@ -134,14 +134,27 @@ class Config:
             'key_down': 'key_down',
         }
 
-        if not self.config.has_section('settings'):
-            self.config.add_section('settings')
+        try:
+            if not self.config.has_section('settings'):
+                self.config.add_section('settings')
 
-        for config_key, dpg_tag in config_to_save.items():
-            if dpg.does_item_exist(dpg_tag):
-                value = dpg.get_value(dpg_tag)
-                self.data[config_key] = value
-                self.config.set('settings', config_key, str(value))
+            for config_key, dpg_tag in config_to_save.items():
+                if dpg.does_item_exist(dpg_tag):
+                    value = dpg.get_value(dpg_tag)
+                    self.data[config_key] = value
+                    self.config.set('settings', config_key, str(value))
 
-        with open(self.filepath, 'w') as f:
-            self.config.write(f)
+            self._write_config()
+            logger.info("Configuration saved successfully")
+            
+        except Exception as e:
+            logger.error(f"Error saving config: {e}")
+
+    def _write_config(self) -> None:
+        """Write configuration to file."""
+        try:
+            with open(self.filepath, 'w') as f:
+                self.config.write(f)
+        except IOError as e:
+            logger.error(f"Could not write config file: {e}")
+            raise
