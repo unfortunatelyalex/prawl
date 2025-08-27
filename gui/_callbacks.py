@@ -155,8 +155,7 @@ class Callbacks:
                     result = subprocess.run(
                         'cmd /c start steam://rungameid/291550', 
                         check=False, 
-                        timeout=10,
-                        capture_output=True
+                        timeout=10
                     )
                     
                     dpg.configure_item('farm_status', label='starting brawlhalla...')
