@@ -155,7 +155,10 @@ class KeySequence:
         Returns:
             Dict[str, List[Tuple]]: Dictionary mapping sequence names to lists of action tuples.
         """
-        left, up, down, esc = self.config['key_left'], self.config['key_up'], self.config['key_down'], win32con.VK_ESCAPE
+        left = self.config['key_left']
+        up = self.config['key_up']
+        down = self.config['key_down']
+        esc = win32con.VK_ESCAPE
         light, heavy, throw = self.config['key_light'], self.config['key_heavy'], self.config['key_throw']
 
         sequences_data = {
