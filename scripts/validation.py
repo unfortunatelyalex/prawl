@@ -23,8 +23,10 @@ def validate_range(value: Union[int, float], min_val: Union[int, float], max_val
         Validated value within range
     """
     try:
-        if isinstance(value, str):
-            value = float(value) if '.' in value else int(value)
+            try:
+                value = int(value)
+            except ValueError:
+                value = float(value)
             
         if value < min_val:
             logger.warning(f"Value {value} below minimum {min_val}, clamping")
