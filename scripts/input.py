@@ -136,7 +136,25 @@ class KeySequence:
             logger.error(f"Error getting DPG value for '{tag}': {e}")
             return default
 
-    def _build(self, time_d, time_a, menu_k, hwnd):
+    def _build(
+        self,
+        time_d: int,
+        time_a: int,
+        menu_k: int,
+        hwnd: int
+    ) -> Dict[str, List[Tuple]]:
+        """
+        Build and return the sequences data structure for automated input actions.
+
+        Args:
+            time_d (int): Delay time parameter for certain actions.
+            time_a (int): Additional time parameter for actions.
+            menu_k (int): Key code for menu actions.
+            hwnd (int): Window handle to target.
+
+        Returns:
+            Dict[str, List[Tuple]]: Dictionary mapping sequence names to lists of action tuples.
+        """
         left, up, down, esc = self.config['key_left'], self.config['key_up'], self.config['key_down'], win32con.VK_ESCAPE
         light, heavy, throw = self.config['key_light'], self.config['key_heavy'], self.config['key_throw']
 
