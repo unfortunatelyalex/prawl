@@ -3,57 +3,162 @@ import random
 import win32api
 import win32con
 import dearpygui.dearpygui as dpg
+from typing import Optional, List, Dict, Any, Callable, Tuple
+import logging
 from scripts.window import activate
 from scripts._direct import Keyboard
+from scripts.constants import (
+    DEFAULT_KEYPRESS_HOLD_MS, 
+    DEFAULT_KEYPRESS_DELAY_MS, 
+    RANDOM_VARIATION_FACTOR,
+    DEFAULT_MATCH_TIME_MINUTES
+)
+
+logger = logging.getLogger(__name__)
 
 class KeyListener:
+    """Handles keyboard input detection for hotkey configuration."""
+    
     def __init__(self):
+        # Virtual key code mappings for input detection
         self.VK_CODE = {
-            'enter':13, 'esc':27, 'spacebar':32,
-            'left':37, 'up':38, 'right':39, 'down':40,
-            '0':48, '1':49, '2':50, '3':51, '4':52, '5':53, '6':54, '7':55, '8':56, '9':57,
-            'a':65, 'b':66, 'c':67, 'd':68, 'e':69, 'f':70, 'g':71, 'h':72, 'i':73, 'j':74, 'k':75, 'l':76, 'm':77,
-            'n':78, 'o':79, 'p':80, 'q':81, 'r':82, 's':83, 't':84, 'u':85, 'v':86, 'w':87, 'x':88, 'y':89, 'z':90,
-            'numpad_0':96, 'numpad_1':97, 'numpad_2':98, 'numpad_3':99, 'numpad_4':100, 'numpad_5':101, 'numpad_6':102, 'numpad_7':103, 'numpad_8':104, 'numpad_9':105,
-            'left_shift':160, 'right_shift':161, 'left_control':162, 'right_control':163,
-            '+':187, ',':188, '-':189, '.':190, '/':191, '`':192, ';':186, '[':219, '\\':220, ']':221, "'":222
+            'enter': 13, 'esc': 27, 'spacebar': 32,
+            'left': 37, 'up': 38, 'right': 39, 'down': 40,
+            **{str(i): 48 + i for i in range(10)},  # 0-9
+            **{chr(65 + i): 65 + i for i in range(26)},  # A-Z
+            **{f'numpad_{i}': 96 + i for i in range(10)},  # Numpad 0-9
+            'left_shift': 160, 'right_shift': 161, 
+            'left_control': 162, 'right_control': 163,
+            '+': 187, ',': 188, '-': 189, '.': 190, '/': 191, 
+            '`': 192, ';': 186, '[': 219, '\\': 220, ']': 221, "'": 222
         }
         self.VK_NAME = {v: k for k, v in self.VK_CODE.items()}
 
-    def hotkey(self):
-        while any(win32api.GetAsyncKeyState(key) for key in self.VK_CODE.values()):
-            time.sleep(0.01)
-        while True:
-            for key_code in self.VK_NAME:
-                if win32api.GetAsyncKeyState(key_code) & 0x8000:
-                    key_name = self.VK_NAME[key_code]
-                    if key_name == 'esc':
-                        return None
-                    return key_name
-            time.sleep(0.01)
+    def hotkey(self) -> Optional[str]:
+        """
+        Wait for and capture a hotkey press.
+        
+        Returns:
+            Key name if captured, None if escaped
+        """
+        try:
+            # Wait for all keys to be released first
+            while any(win32api.GetAsyncKeyState(key) for key in self.VK_CODE.values()):
+                time.sleep(0.01)
+                
+            # Wait for key press
+            while True:
+                for key_code in self.VK_NAME:
+                    if win32api.GetAsyncKeyState(key_code) & 0x8000:
+                        key_name = self.VK_NAME[key_code]
+                        if key_name == 'esc':
+                            return None
+                        return key_name
+                time.sleep(0.01)
+        except Exception as e:
+            logger.error(f"Error in hotkey detection: {e}")
+            return None
 
 class KeySequence:
-    def __init__(self, config, keyboard: Keyboard):
+    """Handles execution of keyboard action sequences for game automation."""
+    
+    def __init__(self, config: Dict[str, Any], keyboard: Keyboard):
         self.keyboard = keyboard
         self.config = config
-        self._cache = None
-        self._last_d = None
-        self._last_a = None
-        self._last_menu_k = None
+        self._cache: Optional[Dict] = None
+        self._last_d: Optional[str] = None
+        self._last_a: Optional[int] = None
+        self._last_menu_k: Optional[int] = None
 
-    def _keypress(self, hwnd, key, hold=70, delay=150, direct=False):
-        vk = win32api.VkKeyScan(key) if isinstance(key, str) else key
-        if direct:
-            self.keyboard.keypress(key, hold)
-            time.sleep(random.uniform(delay, (delay+40))/1000)
-        else:
-            win32api.SendMessage(hwnd, win32con.WM_KEYDOWN, vk, 0)
-            time.sleep(random.uniform((hold-10),(hold+20))/1000)
-            win32api.SendMessage(hwnd, win32con.WM_KEYUP, vk, 0)
-            time.sleep(random.uniform(delay, (delay+40))/1000)
+    def _keypress(self, hwnd: int, key, hold: int = None, delay: int = None, direct: bool = False) -> None:
+        """
+        Send a keypress to the specified window.
+        
+        Args:
+            hwnd: Window handle
+            key: Key to press (string or virtual key code)
+            hold: Hold duration in milliseconds
+            delay: Delay after keypress in milliseconds
+            direct: Whether to use direct input mode
+        """
+        if hold is None:
+            hold = DEFAULT_KEYPRESS_HOLD_MS
+        if delay is None:
+            delay = DEFAULT_KEYPRESS_DELAY_MS
+            
+        try:
+            vk = win32api.VkKeyScan(key) if isinstance(key, str) else key
+            
+            if direct:
+                self.keyboard.keypress(key, hold)
+                # Add random variation to delay
+                delay_time = random.uniform(delay, delay + 40) / 1000
+                time.sleep(delay_time)
+            else:
+                # Send key down
+                win32api.SendMessage(hwnd, win32con.WM_KEYDOWN, vk, 0)
+                
+                # Hold time with variation
+                hold_time = random.uniform(
+                    (hold - 10) / 1000, 
+                    (hold + 20) / 1000
+                )
+                time.sleep(hold_time)
+                
+                # Send key up
+                win32api.SendMessage(hwnd, win32con.WM_KEYUP, vk, 0)
+                
+                # Delay with variation
+                delay_time = random.uniform(delay, delay + 40) / 1000
+                time.sleep(delay_time)
+                
+        except Exception as e:
+            logger.error(f"Error sending keypress {key}: {e}")
 
-    def _build(self, time_d, time_a, menu_k, hwnd):
-        left, up, down, esc = self.config['key_left'], self.config['key_up'], self.config['key_down'], win32con.VK_ESCAPE
+    def _validate_dpg_value(self, tag: str, default: Any) -> Any:
+        """
+        Safely get value from DearPyGUI with fallback.
+        
+        Args:
+            tag: DearPyGUI item tag
+            default: Default value if tag doesn't exist
+            
+        Returns:
+            Value from DPG or default
+        """
+        try:
+            if dpg.does_item_exist(tag):
+                return dpg.get_value(tag)
+            else:
+                logger.warning(f"DPG item '{tag}' not found, using default: {default}")
+                return default
+        except Exception as e:
+            logger.error(f"Error getting DPG value for '{tag}': {e}")
+            return default
+
+    def _build(
+        self,
+        time_d: int,
+        time_a: int,
+        menu_k: int,
+        hwnd: int
+    ) -> Dict[str, List[Tuple]]:
+        """
+        Build and return the sequences data structure for automated input actions.
+
+        Args:
+            time_d (int): Delay time parameter for certain actions.
+            time_a (int): Additional time parameter for actions.
+            menu_k (int): Key code for menu actions.
+            hwnd (int): Window handle to target.
+
+        Returns:
+            Dict[str, List[Tuple]]: Dictionary mapping sequence names to lists of action tuples.
+        """
+        left = self.config['key_left']
+        up = self.config['key_up']
+        down = self.config['key_down']
+        esc = win32con.VK_ESCAPE
         light, heavy, throw = self.config['key_light'], self.config['key_heavy'], self.config['key_throw']
 
         sequences_data = {

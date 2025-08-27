@@ -5,8 +5,12 @@ import webbrowser
 import threading
 import dearpygui.dearpygui as dpg
 import scripts.window as window
+import logging
+from typing import Optional, Tuple
 from scripts.timer import calculate_exp, calculate_gold
 from scripts.input import KeyListener
+
+logger = logging.getLogger(__name__)
 
 class CooldownTimer:
     def __init__(self, duration, callback):
@@ -124,122 +128,124 @@ class Callbacks:
         dpg.configure_item('farm_status', label='inactive')
         dpg.configure_item('launch_button_tooltip', default_value=text)
     def launch_button(self):
-        if window.running():
-            self.launch_count += 1
-            if self.launch_count == 1:
-                dpg.configure_item('farm_status', label='already running! (close?)')
-                dpg.configure_item('launch_button_tooltip', default_value='click again to stop')
-                self.launch_timer.start()
-            elif self.launch_count == 2:
-                dpg.configure_item('farm_status', label='terminated brawlhalla')
-                dpg.configure_item('launch_button_tooltip', default_value='start brawlhalla')
-                window.close()
-                self.launch_count = 0
-                self.launch_timer.cancel()
-                self.timer.stop()
-        else:
-            subprocess.run('cmd /c start steam://rungameid/291550', check=False)
-            dpg.configure_item('farm_status', label='starting brawlhalla...')
-            dpg.configure_item('launch_button_tooltip', default_value='stop brawlhalla')
-            while not window.running():
-                time.sleep(0.5)
-            self.state['hwnd'] = window.find()
-            dpg.configure_item('farm_status', label='brawlhalla started')
+        """Handle Brawlhalla launch/close button with error recovery."""
+        try:
+            if window.running():
+                self.launch_count += 1
+                if self.launch_count == 1:
+                    dpg.configure_item('farm_status', label='already running! (close?)')
+                    dpg.configure_item('launch_button_tooltip', default_value='click again to stop')
+                    self.launch_timer.start()
+                elif self.launch_count == 2:
+                    dpg.configure_item('farm_status', label='terminating brawlhalla...')
+                    dpg.configure_item('launch_button_tooltip', default_value='start brawlhalla')
+                    
+                    # Safely close the game
+                    if window.close():
+                        dpg.configure_item('farm_status', label='brawlhalla terminated')
+                    else:
+                        dpg.configure_item('farm_status', label='failed to terminate brawlhalla')
+                        
+                    self.launch_count = 0
+                    self.launch_timer.cancel()
+                    self.timer.stop()
+            else:
+                try:
+                    # Launch Brawlhalla through Steam
+                    result = subprocess.run(
+                        'cmd /c start steam://rungameid/291550', 
+                        check=False, 
+                        timeout=10
+                    )
+                    
+                    dpg.configure_item('farm_status', label='starting brawlhalla...')
+                    dpg.configure_item('launch_button_tooltip', default_value='stop brawlhalla')
+                    
+                    # Wait for game to start with timeout
+                    start_time = time.time()
+                    timeout = 60  # 60 seconds timeout
+                    
+                    while not window.running() and (time.time() - start_time) < timeout:
+                        time.sleep(0.5)
+                        
+                    if window.running():
+                        self.state['hwnd'] = window.find()
+                        dpg.configure_item('farm_status', label='brawlhalla started')
+                    else:
+                        dpg.configure_item('farm_status', label='brawlhalla failed to start (timeout)')
+                        dpg.configure_item('launch_button_tooltip', default_value='start brawlhalla')
+                        
+                except subprocess.TimeoutExpired:
+                    dpg.configure_item('farm_status', label='launch command timed out')
+                except Exception as e:
+                    logger.error(f"Error launching Brawlhalla: {e}")
+                    dpg.configure_item('farm_status', label='failed to launch brawlhalla')
+                    
+        except Exception as e:
+            logger.error(f"Error in launch_button: {e}")
+            dpg.configure_item('farm_status', label='launch error occurred')
 
     # ---------------------------------------------------
 
     def update_values(self, sender, app_data):
-        estimated_exp = calculate_exp(app_data)
-        estimated_gold = calculate_gold(app_data)
-        dpg.set_value('estimated_values', f'gold: {int(estimated_gold)} | exp: {int(estimated_exp)}')
+        """Update estimated values with input validation."""
+        try:
+            # Validate input range
+            minutes = max(1, min(25, app_data))  # Clamp between 1-25 minutes
+            
+            estimated_exp = calculate_exp(minutes)
+            estimated_gold = calculate_gold(minutes)
+            
+            dpg.set_value('estimated_values', f'gold: {int(estimated_gold)} | exp: {int(estimated_exp)}')
+        except Exception as e:
+            logger.error(f"Error updating values: {e}")
+            dpg.set_value('estimated_values', 'calculation error')
 
-    def update_slider_format(self, value):
-        if value == 1:
-            dpg.configure_item('match_time', format=f"{value} minute")
-        else:
-            dpg.configure_item('match_time', format=f"{value} minutes")
+    def update_slider_format(self, value: int) -> None:
+        """Update slider format text with validation."""
+        try:
+            # Validate value
+            value = max(1, min(25, int(value)))
+            
+            if value == 1:
+                dpg.configure_item('match_time', format=f"{value} minute")
+            else:
+                dpg.configure_item('match_time', format=f"{value} minutes")
+        except Exception as e:
+            logger.error(f"Error updating slider format: {e}")
 
     def match_time_slider(self, sender, app_data):
-        self.update_slider_format(app_data)
-        self.update_values(sender, app_data)
+        """Handle match time slider changes with validation."""
+        try:
+            # Validate and clamp the value
+            value = max(1, min(25, int(app_data)))
+            
+            self.update_slider_format(value)
+            self.update_values(sender, value)
+        except Exception as e:
+            logger.error(f"Error in match time slider: {e}")
 
-    # settings page
-    # ---------------------------------------------------
+    def beep_sound(self) -> None:
+        """Play beep sound with error handling."""
+        try:
+            frequency = dpg.get_value('beep_frequency') if dpg.does_item_exist('beep_frequency') else 500
+            duration = dpg.get_value('beep_duration') if dpg.does_item_exist('beep_duration') else 72
+            
+            # Validate frequency and duration ranges
+            frequency = max(37, min(32767, frequency))  # Windows beep frequency limits
+            duration = max(1, min(5000, duration))      # Reasonable duration limits
+            
+            winsound.Beep(int(frequency), int(duration))
+        except Exception as e:
+            logger.error(f"Error playing beep sound: {e}")
 
-    def hotkey_button(self, sender, app_data, user_data):
-        key_tag = user_data
-        dpg.configure_item(f'{key_tag}_button', label='...', enabled=True)
-        dpg.set_value(f'{key_tag}_tooltip_text', 'waiting for key, esc to cancel')
-
-        def listen_and_update():
-            hotkey = self.listener.hotkey()
-            def update_ui():
-                if hotkey:
-                    self.config[key_tag] = hotkey
-                dpg.set_value(key_tag, hotkey)
-                dpg.configure_item(f'{key_tag}_button', label=self.config.get(key_tag, None))
-                text = ' '.join(reversed(key_tag.split('_')))
-                dpg.set_value(f'{key_tag}_tooltip_text', f'change {text}')
-
-            with dpg.mutex():
-                dpg.set_frame_callback(dpg.get_frame_count() + 1, callback=update_ui)
-
-        threading.Thread(target=listen_and_update, daemon=True).start()
-
-    # ---------------------------------------------------
-
-    def update_aot(self, sender, app_data):
-        dpg.set_viewport_always_top(app_data)
-
-    def _general_state_reset(self):
-        self.timing_count = 0
-        dpg.configure_item('reset_general_button_text', show=False)
-        dpg.configure_item('reset_general_button_tooltip', default_value='reset all general settings')
-    def reset_general(self):
-        self.timing_count += 1
-        if self.timing_count == 1:
-            dpg.configure_item('reset_general_button_text', show=True)
-            dpg.configure_item('reset_general_button_tooltip', default_value='click again to reset')
-            self.timing_timer.start()
-        elif self.timing_count == 2:
-            dpg.configure_item('reset_general_button_text', show=False)
-            dpg.configure_item('reset_general_button_tooltip', default_value='reset all general settings')
-            dpg.set_value('start_spam', 10); dpg.set_value('wait_restart', 4); dpg.set_value('wait_gameload', 15)
-            dpg.set_value('menu_key_presses', 2); dpg.set_value('menu_key_presses_delay', 0)
-            dpg.set_value('wait_disconnect', 100); dpg.set_value('wait_reconnect', 4)
-            dpg.set_value('keypress_hold', 70); dpg.set_value('keypress_delay', 150)
-            self.timing_count = 0
-            self.timing_timer.cancel()
-
-    # ---------------------------------------------------
-
-    def select_open_menu_default(self):
-        if not dpg.get_value('open_menu_default'): dpg.set_value('open_menu_default', True)
-        else: dpg.configure_item('open_menu_fix', enabled=True); dpg.configure_item('open_menu_fix2', enabled=True)
-        for tag in ['menu_key_presses', 'menu_key_presses_delay', 'menu_key_presses_text', 'menu_key_presses_delay_text']:
-            dpg.configure_item(tag, show=True)
-        dpg.set_value('open_menu_hold', False)
-
-    def select_open_menu_fix(self):
-        if dpg.get_value('open_menu_fix2'): dpg.set_value('open_menu_fix2', False)
-
-    def select_open_menu_fix2(self):
-        if dpg.get_value('open_menu_fix'): dpg.set_value('open_menu_fix', False)
-
-    def select_open_menu_hold(self):
-        if not dpg.get_value('open_menu_hold'): dpg.set_value('open_menu_hold', True)
-        dpg.configure_item('open_menu_fix', enabled=False); dpg.configure_item('open_menu_fix2', enabled=False)
-        for tag in ['menu_key_presses', 'menu_key_presses_delay', 'menu_key_presses_text', 'menu_key_presses_delay_text']:
-            dpg.configure_item(tag, show=False)
-        dpg.set_value('open_menu_default', False); dpg.set_value('open_menu_fix', False)
-
-    # ---------------------------------------------------
-
-    def beep_sound(self):
-        winsound.Beep(dpg.get_value('beep_frequency'), dpg.get_value('beep_duration'))
-
-    def beep_reset(self):
-        dpg.set_value('beep_frequency', 500); dpg.set_value('beep_duration', 72)
+    def beep_reset(self) -> None:
+        """Reset beep settings to defaults."""
+        try:
+            dpg.set_value('beep_frequency', 500)
+            dpg.set_value('beep_duration', 72)
+        except Exception as e:
+            logger.error(f"Error resetting beep settings: {e}")
 
     # ---------------------------------------------------
 
