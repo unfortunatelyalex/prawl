@@ -198,10 +198,10 @@ class Keyboard:
         """
         try:
             # Press all keys in sequence
-            for key in keys:
+            for i, key in enumerate(keys):
                 if not self.press(key):
                     # Clean up - release any keys that were pressed
-                    for pressed_key in keys[:keys.index(key)]:
+                    for pressed_key in keys[:i]:
                         self.release(pressed_key)
                     return False
                 time.sleep(random.uniform(0.01, 0.02))
